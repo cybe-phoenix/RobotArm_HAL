@@ -1,0 +1,28 @@
+--cpu Cortex-M3
+"robotarm_hal_rebuild\startup_stm32f102xb.o"
+"robotarm_hal_rebuild\main.o"
+"robotarm_hal_rebuild\gpio.o"
+"robotarm_hal_rebuild\adc.o"
+"robotarm_hal_rebuild\tim.o"
+"robotarm_hal_rebuild\stm32f1xx_it.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_msp.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_gpio_ex.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_adc.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_adc_ex.o"
+"robotarm_hal_rebuild\stm32f1xx_hal.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_rcc.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_rcc_ex.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_gpio.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_dma.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_cortex.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_pwr.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_flash.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_flash_ex.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_exti.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_tim.o"
+"robotarm_hal_rebuild\stm32f1xx_hal_tim_ex.o"
+"robotarm_hal_rebuild\system_stm32f1xx.o"
+--strict --scatter "RobotArm_HAL_Rebuild\RobotArm_HAL_Rebuild.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "RobotArm_HAL_Rebuild.map" -o RobotArm_HAL_Rebuild\RobotArm_HAL_Rebuild.axf
