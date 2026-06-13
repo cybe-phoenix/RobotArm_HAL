@@ -30,5 +30,6 @@ robotarm_hal_rebuild\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_p
 robotarm_hal_rebuild\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
 robotarm_hal_rebuild\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 robotarm_hal_rebuild\main.o: ../Core/Inc/adc.h
+robotarm_hal_rebuild\main.o: ../Core/Inc/dma.h
 robotarm_hal_rebuild\main.o: ../Core/Inc/tim.h
 robotarm_hal_rebuild\main.o: ../Core/Inc/gpio.h

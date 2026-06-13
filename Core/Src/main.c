@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "dma.h"
 #include "tim.h"
 #include "gpio.h"
 
@@ -45,6 +46,14 @@
 
 /* USER CODE BEGIN PV */
 
+uint16_t adc_values[5] = {0};
+
+volatile uint16_t adc_debug0 = 0;
+volatile uint16_t adc_debug1 = 0;
+volatile uint16_t adc_debug2 = 0;
+volatile uint16_t adc_debug3 = 0;
+volatile uint16_t adc_debug4 = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -56,12 +65,60 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-#define SERVO_PWM_MID 150
+#define SERVO1_MID 150   // PA6  -> TIM3_CH1
+#define SERVO2_MID 150   // PA7  -> TIM3_CH2
+#define SERVO3_MID 150   // PB0  -> TIM3_CH3
+#define SERVO4_MID 190   // PB1  -> TIM3_CH4，需要调整
+#define SERVO5_MID 150   // PB6  -> TIM4_CH1
+
 #define GRIPPER_PWM_MIN    50
 #define GRIPPER_PWM_MAX    140
 
 #define GRIPPER_OPEN_PWM   140
 #define GRIPPER_CLOSE_PWM  50
+
+#define ADC_MAX_VALUE 4095
+
+#define SERVO1_MIN 130
+#define SERVO1_MAX 170
+
+#define SERVO2_MIN 130
+#define SERVO2_MAX 170
+
+#define SERVO3_MIN 130
+#define SERVO3_MAX 170
+
+#define SERVO4_MIN 170
+#define SERVO4_MAX 210
+
+#define SERVO5_MIN 130
+#define SERVO5_MAX 170
+
+static uint16_t PWM_Limit(int32_t pwm, uint16_t min, uint16_t max)
+{
+    if (pwm < min) pwm = min;
+    if (pwm > max) pwm = max;
+    return (uint16_t)pwm;
+}
+
+static uint16_t ADC_To_PWM(uint16_t adc, uint16_t min, uint16_t max, uint8_t reverse)
+{
+    int32_t pwm;
+
+    if (adc > ADC_MAX_VALUE)
+    {
+        adc = ADC_MAX_VALUE;
+    }
+
+    pwm = min + (int32_t)((uint32_t)adc * (max - min) / ADC_MAX_VALUE);
+
+    if (reverse)
+    {
+        pwm = min + max - pwm;
+    }
+
+    return PWM_Limit(pwm, min, max);
+}
 
 static void Servo_PWM_Start_All(void)
 {
@@ -77,12 +134,12 @@ static void Servo_PWM_Start_All(void)
 
 static void Servo_All_Mid(void)
 {
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, SERVO_PWM_MID);
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, SERVO_PWM_MID);
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, SERVO_PWM_MID);
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, SERVO_PWM_MID);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, SERVO1_MID);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, SERVO2_MID);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, SERVO3_MID);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, SERVO4_MID);
 
-    __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, SERVO_PWM_MID);
+    __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, SERVO5_MID);
     // 夹爪先不设置
     // __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, SERVO_PWM_MID);
 }
@@ -104,6 +161,52 @@ static void Gripper_Test_PWM(uint16_t pwm)
     HAL_Delay(1000);
 
     HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_2);
+}
+
+static void Servo_Update_From_ADC(void)
+{
+    /*
+      最后一个参数：
+      0 = 正向
+      1 = 反向
+
+      这里先参考原源码方向：
+      AD0 -> 反向
+      AD1 -> 正向
+      AD2 -> 正向
+      AD3 -> 反向
+      AD4 -> 正向
+    */
+
+    __HAL_TIM_SET_COMPARE(
+        &htim3,
+        TIM_CHANNEL_1,
+        ADC_To_PWM(adc_values[0], SERVO1_MIN, SERVO1_MAX, 1)
+    );
+
+    __HAL_TIM_SET_COMPARE(
+        &htim3,
+        TIM_CHANNEL_2,
+        ADC_To_PWM(adc_values[1], SERVO2_MIN, SERVO2_MAX, 1)
+    );
+
+    __HAL_TIM_SET_COMPARE(
+        &htim3,
+        TIM_CHANNEL_3,
+        ADC_To_PWM(adc_values[2], SERVO3_MIN, SERVO3_MAX, 1)
+    );
+
+    __HAL_TIM_SET_COMPARE(
+        &htim3,
+        TIM_CHANNEL_4,
+        ADC_To_PWM(adc_values[3], SERVO4_MIN, SERVO4_MAX, 1)
+    );
+
+    __HAL_TIM_SET_COMPARE(
+        &htim4,
+        TIM_CHANNEL_1,
+        ADC_To_PWM(adc_values[4], SERVO5_MIN, SERVO5_MAX, 0)
+    );
 }
 
 /* USER CODE END 0 */
@@ -136,6 +239,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_ADC1_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
@@ -145,15 +249,21 @@ int main(void)
   Servo_PWM_Start_All();
   HAL_Delay(1000);
 
-  // 单独测试夹爪
-  Gripper_Test_PWM(140);
-  HAL_Delay(1000);
+  // 夹爪测试已完成，ADC 测试阶段先不自动开合夹爪
+  // Gripper_Test_PWM(140);
+  // HAL_Delay(1000);
 
-  Gripper_Test_PWM(50);
-  HAL_Delay(1000);
+  // Gripper_Test_PWM(50);
+  // HAL_Delay(1000);
 
-  Gripper_Test_PWM(140);
-  HAL_Delay(1000);
+  // Gripper_Test_PWM(140);
+  // HAL_Delay(1000);
+
+  /* ADC 校准 */
+  HAL_ADCEx_Calibration_Start(&hadc1);
+
+  /* 启动 ADC + DMA，连续采集 PA0~PA4 */
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_values, 5);
 
   /* USER CODE END 2 */
 
@@ -164,6 +274,17 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+    adc_debug0 = adc_values[0];
+    adc_debug1 = adc_values[1];
+    adc_debug2 = adc_values[2];
+    adc_debug3 = adc_values[3];
+    adc_debug4 = adc_values[4];
+
+    Servo_Update_From_ADC();
+
+    HAL_Delay(20);
+
   }
   /* USER CODE END 3 */
 }

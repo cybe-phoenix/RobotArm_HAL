@@ -3,6 +3,7 @@
 "robotarm_hal_rebuild\main.o"
 "robotarm_hal_rebuild\gpio.o"
 "robotarm_hal_rebuild\adc.o"
+"robotarm_hal_rebuild\dma.o"
 "robotarm_hal_rebuild\tim.o"
 "robotarm_hal_rebuild\stm32f1xx_it.o"
 "robotarm_hal_rebuild\stm32f1xx_hal_msp.o"
