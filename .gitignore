@@ -1,0 +1,19 @@
+# Keil 编译产生的临时和输出文件
+*.o
+*.d
+*.crf
+*.lnp
+*.axf
+*.htm
+*.sct
+*.dep
+*.lst
+*.map
+
+# Keil 界面状态和历史记录（换电脑打开可能会卡死）
+*.uvguix.*
+*.uv2.bak
+*.pco
+
+# VS Code 等编辑器的缓存
+.vscode/
