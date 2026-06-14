@@ -54,6 +54,8 @@ volatile uint16_t adc_debug2 = 0;
 volatile uint16_t adc_debug3 = 0;
 volatile uint16_t adc_debug4 = 0;
 
+volatile uint8_t gripper_state = 0;  // 0 = 打开，1 = 闭合
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -68,7 +70,7 @@ void SystemClock_Config(void);
 #define SERVO1_MID 150   // PA6  -> TIM3_CH1
 #define SERVO2_MID 150   // PA7  -> TIM3_CH2
 #define SERVO3_MID 150   // PB0  -> TIM3_CH3
-#define SERVO4_MID 190   // PB1  -> TIM3_CH4，需要调整
+#define SERVO4_MID 190   // PB1  -> TIM3_CH4，需要调�?
 #define SERVO5_MID 150   // PB6  -> TIM4_CH1
 
 #define GRIPPER_PWM_MIN    50
@@ -163,19 +165,21 @@ static void Gripper_Test_PWM(uint16_t pwm)
     HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_2);
 }
 
+static void Gripper_Open(void)
+{
+    Gripper_Test_PWM(GRIPPER_OPEN_PWM);
+}
+
+static void Gripper_Close(void)
+{
+    Gripper_Test_PWM(GRIPPER_CLOSE_PWM);
+}
+
 static void Servo_Update_From_ADC(void)
 {
     /*
-      最后一个参数：
       0 = 正向
       1 = 反向
-
-      这里先参考原源码方向：
-      AD0 -> 反向
-      AD1 -> 正向
-      AD2 -> 正向
-      AD3 -> 反向
-      AD4 -> 正向
     */
 
     __HAL_TIM_SET_COMPARE(
@@ -207,6 +211,53 @@ static void Servo_Update_From_ADC(void)
         TIM_CHANNEL_1,
         ADC_To_PWM(adc_values[4], SERVO5_MIN, SERVO5_MAX, 0)
     );
+}
+
+static uint8_t Key_GetNum(void)
+{
+    uint8_t key_num = 0;
+
+    if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_12) == GPIO_PIN_RESET)
+    {
+        HAL_Delay(20);
+        if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_12) == GPIO_PIN_RESET)
+        {
+            key_num = 1;
+            while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_12) == GPIO_PIN_RESET);
+        }
+    }
+
+    if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == GPIO_PIN_RESET)
+    {
+        HAL_Delay(20);
+        if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == GPIO_PIN_RESET)
+        {
+            key_num = 2;
+            while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == GPIO_PIN_RESET);
+        }
+    }
+
+    if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14) == GPIO_PIN_RESET)
+    {
+        HAL_Delay(20);
+        if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14) == GPIO_PIN_RESET)
+        {
+            key_num = 3;
+            while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14) == GPIO_PIN_RESET);
+        }
+    }
+
+    if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_15) == GPIO_PIN_RESET)
+    {
+        HAL_Delay(20);
+        if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_15) == GPIO_PIN_RESET)
+        {
+            key_num = 4;
+            while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_15) == GPIO_PIN_RESET);
+        }
+    }
+
+    return key_num;
 }
 
 /* USER CODE END 0 */
@@ -249,7 +300,7 @@ int main(void)
   Servo_PWM_Start_All();
   HAL_Delay(1000);
 
-  // 夹爪测试已完成，ADC 测试阶段先不自动开合夹爪
+  // 夹爪测试已完成，ADC 测试阶段先不自动�?合夹�?
   // Gripper_Test_PWM(140);
   // HAL_Delay(1000);
 
@@ -262,7 +313,7 @@ int main(void)
   /* ADC 校准 */
   HAL_ADCEx_Calibration_Start(&hadc1);
 
-  /* 启动 ADC + DMA，连续采集 PA0~PA4 */
+  /* 启动 ADC + DMA，连续采�? PA0~PA4 */
   HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_values, 5);
 
   /* USER CODE END 2 */
@@ -275,6 +326,10 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
+    uint8_t key = 0;
+
+    key = Key_GetNum();
+
     adc_debug0 = adc_values[0];
     adc_debug1 = adc_values[1];
     adc_debug2 = adc_values[2];
@@ -282,6 +337,20 @@ int main(void)
     adc_debug4 = adc_values[4];
 
     Servo_Update_From_ADC();
+
+    if (key == 3)
+    {
+      gripper_state = !gripper_state;
+
+      if (gripper_state == 0)
+      {
+          Gripper_Open();
+      }
+      else
+      {
+          Gripper_Close();
+      }
+    }
 
     HAL_Delay(20);
 
