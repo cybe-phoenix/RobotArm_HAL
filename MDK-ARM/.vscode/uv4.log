@@ -1,2 +1,4 @@
 Load "RobotArm_HAL_Rebuild\\RobotArm_HAL_Rebuild.axf" 
-Erase Done.Programming Done.Verify OK.Flash Load finished at 10:33:21
+No ST-LINK detected
+Error: Flash Download failed  -  Target DLL has been cancelled
+Flash Load finished at 10:15:49

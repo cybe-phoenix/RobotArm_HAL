@@ -56,6 +56,23 @@ volatile uint16_t adc_debug4 = 0;
 
 volatile uint8_t gripper_state = 0;  // 0 = 打开，1 = 闭合
 
+#define MAX_RECORD_LENGTH 100
+
+uint16_t record_adc[MAX_RECORD_LENGTH][5] = {0};
+uint8_t record_gripper[MAX_RECORD_LENGTH] = {0};
+
+volatile uint16_t record_count = 0;
+
+volatile uint8_t key = 0;
+volatile uint8_t key_last = 0;
+volatile uint32_t key_count = 0;
+volatile uint32_t playback_count = 0;
+
+volatile uint8_t pb12_state = 1;
+volatile uint8_t pb13_state = 1;
+volatile uint8_t pb14_state = 1;
+volatile uint8_t pb15_state = 1;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -70,7 +87,7 @@ void SystemClock_Config(void);
 #define SERVO1_MID 150   // PA6  -> TIM3_CH1
 #define SERVO2_MID 150   // PA7  -> TIM3_CH2
 #define SERVO3_MID 150   // PB0  -> TIM3_CH3
-#define SERVO4_MID 190   // PB1  -> TIM3_CH4，需要调�?
+#define SERVO4_MID 150   // PB1  -> TIM3_CH4
 #define SERVO5_MID 150   // PB6  -> TIM4_CH1
 
 #define GRIPPER_PWM_MIN    50
@@ -81,20 +98,8 @@ void SystemClock_Config(void);
 
 #define ADC_MAX_VALUE 4095
 
-#define SERVO1_MIN 130
-#define SERVO1_MAX 170
-
-#define SERVO2_MIN 130
-#define SERVO2_MAX 170
-
-#define SERVO3_MIN 130
-#define SERVO3_MAX 170
-
-#define SERVO4_MIN 170
-#define SERVO4_MAX 210
-
-#define SERVO5_MIN 130
-#define SERVO5_MAX 170
+#define SERVO_MIN 80
+#define SERVO_MAX 220
 
 static uint16_t PWM_Limit(int32_t pwm, uint16_t min, uint16_t max)
 {
@@ -185,31 +190,31 @@ static void Servo_Update_From_ADC(void)
     __HAL_TIM_SET_COMPARE(
         &htim3,
         TIM_CHANNEL_1,
-        ADC_To_PWM(adc_values[0], SERVO1_MIN, SERVO1_MAX, 1)
+        ADC_To_PWM(adc_values[0], SERVO_MIN, SERVO_MAX, 1)
     );
 
     __HAL_TIM_SET_COMPARE(
         &htim3,
         TIM_CHANNEL_2,
-        ADC_To_PWM(adc_values[1], SERVO2_MIN, SERVO2_MAX, 1)
+        ADC_To_PWM(adc_values[1], SERVO_MIN, SERVO_MAX, 1)
     );
 
     __HAL_TIM_SET_COMPARE(
         &htim3,
         TIM_CHANNEL_3,
-        ADC_To_PWM(adc_values[2], SERVO3_MIN, SERVO3_MAX, 1)
+        ADC_To_PWM(adc_values[2], SERVO_MIN, SERVO_MAX, 1)
     );
 
     __HAL_TIM_SET_COMPARE(
         &htim3,
         TIM_CHANNEL_4,
-        ADC_To_PWM(adc_values[3], SERVO4_MIN, SERVO4_MAX, 1)
+        ADC_To_PWM(adc_values[3], SERVO_MIN, SERVO_MAX, 1)
     );
 
     __HAL_TIM_SET_COMPARE(
         &htim4,
         TIM_CHANNEL_1,
-        ADC_To_PWM(adc_values[4], SERVO5_MIN, SERVO5_MAX, 0)
+        ADC_To_PWM(adc_values[4], SERVO_MIN, SERVO_MAX, 1)
     );
 }
 
@@ -258,6 +263,93 @@ static uint8_t Key_GetNum(void)
     }
 
     return key_num;
+}
+
+static void Record_Current_Point(void)
+{
+    if (record_count >= MAX_RECORD_LENGTH)
+    {
+        return;
+    }
+
+    record_adc[record_count][0] = adc_values[0];
+    record_adc[record_count][1] = adc_values[1];
+    record_adc[record_count][2] = adc_values[2];
+    record_adc[record_count][3] = adc_values[3];
+    record_adc[record_count][4] = adc_values[4];
+
+    record_gripper[record_count] = gripper_state;
+
+    record_count++;
+}
+
+static void Record_Clear(void)
+{
+    record_count = 0;
+}
+
+static void Servo_Set_All_PWM(uint16_t pwm1,
+                              uint16_t pwm2,
+                              uint16_t pwm3,
+                              uint16_t pwm4,
+                              uint16_t pwm5)
+{
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pwm1);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, pwm2);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, pwm3);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, pwm4);
+    __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, pwm5);
+}
+
+#define PLAYBACK_STEPS      100
+#define PLAYBACK_DELAY_MS   8
+
+static void Playback_Record(void)
+{
+    uint16_t i;
+    uint16_t step;
+
+    if (record_count < 2)
+    {
+        return;
+    }
+
+    for (i = 0; i < record_count - 1; i++)
+    {
+        uint16_t s1 = ADC_To_PWM(record_adc[i][0],     SERVO_MIN, SERVO_MAX, 1);
+        uint16_t s2 = ADC_To_PWM(record_adc[i][1],     SERVO_MIN, SERVO_MAX, 1);
+        uint16_t s3 = ADC_To_PWM(record_adc[i][2],     SERVO_MIN, SERVO_MAX, 1);
+        uint16_t s4 = ADC_To_PWM(record_adc[i][3],     SERVO_MIN, SERVO_MAX, 1);
+        uint16_t s5 = ADC_To_PWM(record_adc[i][4],     SERVO_MIN, SERVO_MAX, 1);
+
+        uint16_t e1 = ADC_To_PWM(record_adc[i + 1][0], SERVO_MIN, SERVO_MAX, 1);
+        uint16_t e2 = ADC_To_PWM(record_adc[i + 1][1], SERVO_MIN, SERVO_MAX, 1);
+        uint16_t e3 = ADC_To_PWM(record_adc[i + 1][2], SERVO_MIN, SERVO_MAX, 1);
+        uint16_t e4 = ADC_To_PWM(record_adc[i + 1][3], SERVO_MIN, SERVO_MAX, 1);
+        uint16_t e5 = ADC_To_PWM(record_adc[i + 1][4], SERVO_MIN, SERVO_MAX, 1);
+
+        for (step = 0; step <= PLAYBACK_STEPS; step++)
+        {
+            uint16_t p1 = s1 + (int32_t)(e1 - s1) * step / PLAYBACK_STEPS;
+            uint16_t p2 = s2 + (int32_t)(e2 - s2) * step / PLAYBACK_STEPS;
+            uint16_t p3 = s3 + (int32_t)(e3 - s3) * step / PLAYBACK_STEPS;
+            uint16_t p4 = s4 + (int32_t)(e4 - s4) * step / PLAYBACK_STEPS;
+            uint16_t p5 = s5 + (int32_t)(e5 - s5) * step / PLAYBACK_STEPS;
+
+            Servo_Set_All_PWM(p1, p2, p3, p4, p5);
+
+            HAL_Delay(PLAYBACK_DELAY_MS);
+        }
+
+        if (record_gripper[i + 1] == 0)
+        {
+            Gripper_Open();
+        }
+        else
+        {
+            Gripper_Close();
+        }
+    }
 }
 
 /* USER CODE END 0 */
@@ -326,9 +418,17 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    uint8_t key = 0;
-
     key = Key_GetNum();
+    pb12_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_12);
+    pb13_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13);
+    pb14_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14);
+    pb15_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_15);
+
+    if (key != 0)
+    {
+        key_last = key;
+        key_count++;
+    }
 
     adc_debug0 = adc_values[0];
     adc_debug1 = adc_values[1];
@@ -337,6 +437,17 @@ int main(void)
     adc_debug4 = adc_values[4];
 
     Servo_Update_From_ADC();
+
+    if (key == 1)
+    {
+      Record_Clear();
+    }
+
+    if (key == 2)
+    {
+			playback_count++;
+      Playback_Record();
+    }
 
     if (key == 3)
     {
@@ -350,6 +461,11 @@ int main(void)
       {
           Gripper_Close();
       }
+    }
+
+    if (key == 4)
+    {
+      Record_Current_Point();
     }
 
     HAL_Delay(20);
