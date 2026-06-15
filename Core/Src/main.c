@@ -68,6 +68,8 @@ volatile uint8_t key_last = 0;
 volatile uint32_t key_count = 0;
 volatile uint32_t playback_count = 0;
 
+volatile uint8_t playback_busy = 0;
+
 volatile uint8_t pb12_state = 1;
 volatile uint8_t pb13_state = 1;
 volatile uint8_t pb14_state = 1;
@@ -239,6 +241,7 @@ static uint8_t Key_GetNum(void)
         {
             key_num = 2;
             while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == GPIO_PIN_RESET);
+            HAL_Delay(300);   // KEY2 释放后消抖，防止一次按键触发两次
         }
     }
 
@@ -302,7 +305,7 @@ static void Servo_Set_All_PWM(uint16_t pwm1,
 }
 
 #define PLAYBACK_STEPS      100
-#define PLAYBACK_DELAY_MS   8
+#define PLAYBACK_DELAY_MS   15
 
 static void Playback_Record(void)
 {
@@ -436,8 +439,6 @@ int main(void)
     adc_debug3 = adc_values[3];
     adc_debug4 = adc_values[4];
 
-    Servo_Update_From_ADC();
-
     if (key == 1)
     {
       Record_Clear();
@@ -445,8 +446,13 @@ int main(void)
 
     if (key == 2)
     {
-			playback_count++;
+	  playback_count++;
+      playback_busy = 1;
+
       Playback_Record();
+
+      HAL_Delay(1000);   // 回放结束后停留 1 秒，方便观察
+      playback_busy = 0;
     }
 
     if (key == 3)
@@ -466,6 +472,11 @@ int main(void)
     if (key == 4)
     {
       Record_Current_Point();
+    }
+
+    if (playback_busy == 0)
+    {
+      Servo_Update_From_ADC();
     }
 
     HAL_Delay(20);
