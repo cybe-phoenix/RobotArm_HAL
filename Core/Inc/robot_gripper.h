@@ -11,7 +11,14 @@
 #define GRIPPER_OPEN_PWM   140
 #define GRIPPER_CLOSE_PWM  50
 
+/**
+  * @brief  打开夹爪
+  */
 void Gripper_Open(void);
+
+/**
+  * @brief  关闭夹爪
+  */
 void Gripper_Close(void);
 
 #endif
