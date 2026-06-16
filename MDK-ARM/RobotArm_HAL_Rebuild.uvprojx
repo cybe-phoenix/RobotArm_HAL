@@ -480,6 +480,26 @@
               <FileType>1</FileType>
               <FilePath>../Core/Src/stm32f1xx_hal_msp.c</FilePath>
             </File>
+            <File>
+              <FileName>robot_servo.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\robot_servo.c</FilePath>
+            </File>
+            <File>
+              <FileName>robot_gripper.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\robot_gripper.c</FilePath>
+            </File>
+            <File>
+              <FileName>robot_key.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\robot_key.c</FilePath>
+            </File>
+            <File>
+              <FileName>robot_record.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\robot_record.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -591,5 +611,14 @@
     </components>
     <files/>
   </RTE>
+
+  <LayerInfo>
+    <Layers>
+      <Layer>
+        <LayName>RobotArm_HAL_Rebuild</LayName>
+        <LayPrjMark>1</LayPrjMark>
+      </Layer>
+    </Layers>
+  </LayerInfo>
 
 </Project>
