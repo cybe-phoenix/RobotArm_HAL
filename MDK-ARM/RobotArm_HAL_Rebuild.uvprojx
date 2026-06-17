@@ -562,11 +562,6 @@
               <FileType>1</FileType>
               <FilePath>..\Core\Src\robot_oled.c</FilePath>
             </File>
-            <File>
-              <FileName>robot_oled_font.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Core\Src\robot_oled_font.c</FilePath>
-            </File>
           </Files>
         </Group>
         <Group>

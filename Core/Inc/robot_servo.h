@@ -29,8 +29,8 @@
 #define ADC_MAX_VALUE 4095
 
 /* 舵机安全 PWM 范围，避免机械结构顶死 */
-#define SERVO_MIN 80
-#define SERVO_MAX 220
+#define SERVO_MIN 75
+#define SERVO_MAX 225
 
 /* ========================== 函数声明 ========================== */
 
