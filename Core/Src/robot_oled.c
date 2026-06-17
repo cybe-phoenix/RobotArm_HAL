@@ -194,12 +194,16 @@ static void OLED_ShowString(uint8_t x, uint8_t page, const char *str)
     }
 }
 
-#define OLED_LINE_CHARS  21
+#define OLED_LINE_CHARS      21
+#define OLED_LINE_DATA_LEN   (OLED_LINE_CHARS * 6)
 
 static void OLED_ShowLine(uint8_t page, const char *str)
 {
     char line[OLED_LINE_CHARS + 1];
+    uint8_t send_buf[1 + OLED_LINE_DATA_LEN];
     uint8_t i;
+    uint8_t j;
+    uint8_t index;
 
     for (i = 0; i < OLED_LINE_CHARS; i++)
     {
@@ -215,7 +219,27 @@ static void OLED_ShowLine(uint8_t page, const char *str)
         i++;
     }
 
-    OLED_ShowString(0, page, line);
+    send_buf[0] = OLED_DATA;
+
+    for (i = 0; i < OLED_LINE_CHARS; i++)
+    {
+        if (line[i] < 0x20 || line[i] > 0x7E)
+        {
+            index = 0;
+        }
+        else
+        {
+            index = line[i] - 0x20;
+        }
+
+        for (j = 0; j < 6; j++)
+        {
+            send_buf[1 + i * 6 + j] = OLED_F6x8[index][j];
+        }
+    }
+
+    OLED_Set_Pos(0, page);
+    HAL_I2C_Master_Transmit(&hi2c2, OLED_I2C_ADDR, send_buf, sizeof(send_buf), 100);
 }
 
 void Robot_OLED_Init(void)
@@ -285,4 +309,54 @@ void Robot_OLED_Update(uint8_t key,
     {
         OLED_ShowLine(6, "Grip: Close");
     }
+}
+
+void Robot_OLED_Show_Joints_Status(uint16_t joint_pwm[5],
+                                   uint8_t gripper_state,
+                                   uint8_t playback_busy,
+                                   uint16_t record_count,
+                                   uint8_t robot_mode)
+{
+    char line[22];
+
+    /* 第 1 行：显示当前模式 */
+    if (playback_busy)
+    {
+        OLED_ShowLine(0, "Mode: Playback");
+    }
+    else
+    {
+        if (robot_mode == 1)
+        {
+            OLED_ShowLine(0, "Mode: PC");
+        }
+        else
+        {
+            OLED_ShowLine(0, "Mode: Manual");
+        }
+    }
+
+    /* 第 2 行：显示记录点数量 */
+    sprintf(line, "Points: %03d", record_count);
+    OLED_ShowLine(2, line);
+
+    /* 第 3 行：显示夹爪状态 */
+    if (gripper_state == 0)
+    {
+        OLED_ShowLine(4, "Grip: Open");
+    }
+    else
+    {
+        OLED_ShowLine(4, "Grip: Close");
+    }
+
+    /* 第 4 行：像数组一样显示五个关节 PWM 值 */
+    sprintf(line, "[%03d,%03d,%03d,%03d,%03d]",
+            joint_pwm[0],
+            joint_pwm[1],
+            joint_pwm[2],
+            joint_pwm[3],
+            joint_pwm[4]);
+
+    OLED_ShowLine(6, line);
 }

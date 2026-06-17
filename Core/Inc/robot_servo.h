@@ -84,4 +84,6 @@ void Servo_Set_All_PWM(uint16_t pwm1,
                        uint16_t pwm4,
                        uint16_t pwm5);
 
+void Servo_Get_Current_PWM(uint16_t pwm_values[5]);
+
 #endif

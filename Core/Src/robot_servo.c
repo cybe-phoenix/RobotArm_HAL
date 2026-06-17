@@ -18,6 +18,8 @@
 #define SERVO_PWM_DEADBAND  2 // 声音稍微大一点，但小幅控制更顺滑。
 // #define SERVO_PWM_DEADBAND  3 // 声音更小，但小幅转动会有顿挫感。
 
+static volatile uint16_t servo_current_pwm[5] = {150, 150, 150, 150, 150};
+
 /**
   * @brief  限制 PWM 值在指定范围内
   * @param  pwm 原始 PWM 值
@@ -133,11 +135,23 @@ void Servo_Set_All_PWM(uint16_t pwm1,
                        uint16_t pwm4,
                        uint16_t pwm5)
 {
+    pwm1 = PWM_Limit(pwm1, SERVO_MIN, SERVO_MAX);
+    pwm2 = PWM_Limit(pwm2, SERVO_MIN, SERVO_MAX);
+    pwm3 = PWM_Limit(pwm3, SERVO_MIN, SERVO_MAX);
+    pwm4 = PWM_Limit(pwm4, SERVO_MIN, SERVO_MAX);
+    pwm5 = PWM_Limit(pwm5, SERVO_MIN, SERVO_MAX);
+
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pwm1);
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, pwm2);
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, pwm3);
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, pwm4);
     __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, pwm5);
+
+    servo_current_pwm[0] = pwm1;
+    servo_current_pwm[1] = pwm2;
+    servo_current_pwm[2] = pwm3;
+    servo_current_pwm[3] = pwm4;
+    servo_current_pwm[4] = pwm5;
 }
 
 static uint16_t Servo_Apply_Deadband(uint16_t new_pwm, uint16_t old_pwm)
@@ -197,4 +211,19 @@ void Servo_Update_From_ADC(uint16_t adc_values[5])
     last_pwm3 = pwm3;
     last_pwm4 = pwm4;
     last_pwm5 = pwm5;
+
+    servo_current_pwm[0] = pwm1;
+    servo_current_pwm[1] = pwm2;
+    servo_current_pwm[2] = pwm3;
+    servo_current_pwm[3] = pwm4;
+    servo_current_pwm[4] = pwm5;
+}
+
+void Servo_Get_Current_PWM(uint16_t pwm_values[5])
+{
+    pwm_values[0] = servo_current_pwm[0];
+    pwm_values[1] = servo_current_pwm[1];
+    pwm_values[2] = servo_current_pwm[2];
+    pwm_values[3] = servo_current_pwm[3];
+    pwm_values[4] = servo_current_pwm[4];
 }
