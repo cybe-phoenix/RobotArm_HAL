@@ -20,12 +20,14 @@
 #include "main.h"
 #include "adc.h"
 #include "dma.h"
+#include "i2c.h"
 #include "tim.h"
 #include "gpio.h"
 #include "robot_servo.h"
 #include "robot_gripper.h"
 #include "robot_key.h"
 #include "robot_record.h"
+#include "robot_oled.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -42,7 +44,7 @@
 
 // 调试模式
 // 0 = 关闭
-// 1 = 开启
+// 1 = �?�?
 #define ROBOT_DEBUG_ENABLE  1
 // #define ROBOT_DEBUG_ENABLE  0
 
@@ -59,7 +61,7 @@
 
 uint16_t adc_values[5] = {0};
 
-volatile uint8_t gripper_state = 0;  // 0 = 打开，1 = 闭合
+volatile uint8_t gripper_state = 0;  // 0 = 打开�?1 = 闭合
 
 volatile uint8_t key = 0;
 volatile uint8_t playback_busy = 0;
@@ -82,6 +84,8 @@ volatile uint8_t pb14_state = 1;
 volatile uint8_t pb15_state = 1;
 
 #endif
+
+volatile uint32_t oled_last_tick = 0;
 
 /* USER CODE END PV */
 
@@ -128,13 +132,14 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
 
   Servo_All_Mid();
   Servo_PWM_Start_All();
   HAL_Delay(1000);
 
-  // 夹爪测试已完成，ADC 测试阶段先不自动�?合夹�?
+  // 夹爪测试已完成，ADC 测试阶段先不自动�??合夹�??
   // Gripper_Test_PWM(140);
   // HAL_Delay(1000);
 
@@ -147,8 +152,11 @@ int main(void)
   /* ADC 校准 */
   HAL_ADCEx_Calibration_Start(&hadc1);
 
-  /* 启动 ADC + DMA，连续采�? PA0~PA4 */
+  /* 启动 ADC + DMA，连续采样 PA0~PA4 */
   HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_values, 5);
+
+  Robot_OLED_Init();
+  Robot_OLED_Update(KEY_NONE, gripper_state, playback_busy, record_count);
 
   /* USER CODE END 2 */
 
@@ -164,7 +172,7 @@ int main(void)
 
     #if ROBOT_DEBUG_ENABLE
 
-    // 读取按键原始状态
+    // 读取按键原始状�??
     pb12_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_12);
     pb13_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13);
     pb14_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14);
@@ -176,7 +184,7 @@ int main(void)
         key_count++;
     }
 
-    // 更新 ADC 调试值
+    // 更新 ADC 调试�?
     adc_debug0 = adc_values[0];
     adc_debug1 = adc_values[1];
     adc_debug2 = adc_values[2];
@@ -189,6 +197,7 @@ int main(void)
     {
       case KEY1_NUM:
           Record_Clear();
+          Robot_OLED_Update(key, gripper_state, playback_busy, record_count);
           break;
 
       case KEY2_NUM:
@@ -197,11 +206,14 @@ int main(void)
           #endif
 
           playback_busy = 1;
+          Robot_OLED_Update(key, gripper_state, playback_busy, record_count);
 
           Playback_Record();
 
           HAL_Delay(1000);
+
           playback_busy = 0;
+          Robot_OLED_Update(key, gripper_state, playback_busy, record_count);
           break;
 
       case KEY3_NUM:
@@ -215,10 +227,12 @@ int main(void)
           {
               Gripper_Close();
           }
+          Robot_OLED_Update(key, gripper_state, playback_busy, record_count);
           break;
 
       case KEY4_NUM:
           Record_Current_Point(adc_values, gripper_state);
+          Robot_OLED_Update(key, gripper_state, playback_busy, record_count);
           break;
 
       default:
