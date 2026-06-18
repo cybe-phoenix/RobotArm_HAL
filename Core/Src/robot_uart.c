@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #define UART_RX_BUF_LEN  64
+#define UART_ACK_J_ENABLE  0
 
 volatile Robot_Mode_t robot_mode = ROBOT_MODE_MANUAL;
 
@@ -20,6 +21,10 @@ static volatile uint8_t uart_rx_index = 0;
 static volatile uint8_t uart_cmd_ready = 0;
 
 static uint16_t pc_pwm[5] = {150, 150, 150, 150, 150};
+
+volatile uint8_t uart_req_record = 0;
+volatile uint8_t uart_req_play   = 0;
+volatile uint8_t uart_req_clear  = 0;
 
 static uint16_t UART_Limit_PWM(int value)
 {
@@ -48,7 +53,7 @@ void Robot_UART_Init(void)
     UART_Send_String("Robot UART Ready\r\n");
 }
 
-static void Robot_UART_Parse_Command(char *cmd, uint8_t *gripper_state)
+static void Robot_UART_Parse_Command(char *cmd, volatile uint8_t *gripper_state)
 {
     int p1, p2, p3, p4, p5;
     int grip;
@@ -83,7 +88,9 @@ static void Robot_UART_Parse_Command(char *cmd, uint8_t *gripper_state)
                           pc_pwm[3],
                           pc_pwm[4]);
 
+        #if UART_ACK_J_ENABLE
         UART_Send_String("OK:J\r\n");
+        #endif
     }
     else if (sscanf(cmd, "#G,%d!", &grip) == 1)
     {
@@ -116,13 +123,28 @@ static void Robot_UART_Parse_Command(char *cmd, uint8_t *gripper_state)
 
         UART_Send_String("OK:MID\r\n");
     }
+    else if (strcmp(cmd, "#REC!") == 0)
+    {
+        uart_req_record = 1;
+        UART_Send_String("OK:REC\r\n");
+    }
+    else if (strcmp(cmd, "#PLAY!") == 0)
+    {
+        uart_req_play = 1;
+        UART_Send_String("OK:PLAY\r\n");
+    }
+    else if (strcmp(cmd, "#CLR!") == 0)
+    {
+        uart_req_clear = 1;
+        UART_Send_String("OK:CLR\r\n");
+    }
     else
     {
         UART_Send_String("ERR:UNKNOWN CMD\r\n");
     }
 }
 
-void Robot_UART_Task(uint8_t *gripper_state)
+void Robot_UART_Task(volatile uint8_t *gripper_state)
 {
     char cmd[UART_RX_BUF_LEN];
 

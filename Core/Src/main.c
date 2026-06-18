@@ -95,6 +95,8 @@ volatile uint32_t oled_last_tick = 0;
 uint16_t oled_joint_pwm[5] = {150, 150, 150, 150, 150};
 uint32_t oled_joint_last_tick = 0;
 
+uint16_t record_current_pwm[5] = {150, 150, 150, 150, 150};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -185,7 +187,48 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    // Robot_UART_Task(&gripper_state);
+    Robot_UART_Task(&gripper_state);
+
+    if (uart_req_clear)
+    {
+        uart_req_clear = 0;
+        Record_Clear();
+    }
+
+    if (uart_req_record)
+    {
+        uart_req_record = 0;
+
+        Servo_Get_Current_PWM(record_current_pwm);
+        Record_Current_Point(record_current_pwm, gripper_state);
+    }
+
+    if (uart_req_play)
+    {
+        uart_req_play = 0;
+
+        playback_busy = 1;
+
+        Servo_Get_Current_PWM(oled_joint_pwm);
+        Robot_OLED_Show_Joints_Status(oled_joint_pwm,
+                                      gripper_state,
+                                      playback_busy,
+                                      record_count,
+                                      robot_mode);
+
+        Playback_Record();
+
+        HAL_Delay(1000);
+
+        playback_busy = 0;
+
+        Servo_Get_Current_PWM(oled_joint_pwm);
+        Robot_OLED_Show_Joints_Status(oled_joint_pwm,
+                                      gripper_state,
+                                      playback_busy,
+                                      record_count,
+                                      robot_mode);
+    }
 
     key = Key_GetNum();
 
@@ -257,7 +300,8 @@ int main(void)
           break;
 
       case KEY4_NUM:
-          Record_Current_Point(adc_values, gripper_state);
+          Servo_Get_Current_PWM(record_current_pwm);
+          Record_Current_Point(record_current_pwm, gripper_state);
           break;
 
       default:
